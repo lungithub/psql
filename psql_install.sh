@@ -22,6 +22,10 @@ dnf -y module disable postgresql --nogpgcheck
 # yum -y install postgresql${VERSION} postgresql${VERSION}-server --nogpgcheck 
 dnf -y install postgresql${VERSION}  postgresql${VERSION}-server  --nogpgcheck
 
+# install psycopg2 - choose according to the python version
+dnf -y install python2-psycopg2 --nogpgcheck
+##dnf -y install python3-psycopg2 --nogpgcheck
+
 #(primary/secondary) create data dir 
 mkdir -p /db/pg${VERSION} 
 chown -R postgres:postgres /db/pg${VERSION}
