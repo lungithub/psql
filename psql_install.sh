@@ -20,7 +20,7 @@ dnf -y module disable postgresql --nogpgcheck
 
 #(primary/secondary) Install psql13 
 # yum -y install postgresql${VERSION} postgresql${VERSION}-server --nogpgcheck 
-dnf -y install postgresql${VERSION}  postgresql${VERSION}-server  --nogpgcheck
+dnf -y install postgresql${VERSION}  postgresql${VERSION}-server postgresql${VERSION}-contrib   --nogpgcheck
 
 # install psycopg2 - choose according to the python version
 dnf -y install python2-psycopg2 --nogpgcheck
