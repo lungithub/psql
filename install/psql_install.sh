@@ -66,4 +66,4 @@ echo
 /hostdata/data/env_config/psql_config/copy_psql_management_files.sh
 
 # configure the postgres shell environment
-su - postgres -c "/hostdata/app/psql/install/copy_env_shell_files.sh"
+su - postgres -c "/hostdata/app/psql/copy_env_shell_files.sh"
