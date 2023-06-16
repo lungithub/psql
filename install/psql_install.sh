@@ -63,7 +63,7 @@ ls -ld /var/run/postgresql || echo "Unable to create psql LOCK directory."
 echo
 
 # copy files to manage the service
-/hostdata/data/env_config/psql_config/copy_psql_management_files.sh
+/hostdata/app/psql/install/psql_copy_management_files.sh
 
 # configure the postgres shell environment
-su - postgres -c "/hostdata/app/psql/install/copy_env_shell_files.sh"
+/hostdata/app/psql/install/psql_copy_sudo.sh
