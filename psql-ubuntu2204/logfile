@@ -1,0 +1,2 @@
+2023-02-05 12:52:00.854 PST    [2083] LOG:  redirecting log output to logging collector process
+2023-02-05 12:52:00.854 PST    [2083] HINT:  Future log output will appear in directory "/var/log/postgres".
