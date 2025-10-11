@@ -4,7 +4,7 @@
 mkdir /var/lib/pgsql/bin
 
 # go to the location of the files
-BASEDIR=/hostdata/app/psql_config
+BASEDIR=/hostdata/app/psql/psql-ubuntu2204
 
 cp ${BASEDIR}/files/pstart.sh /var/lib/pgsql/bin
 ln -s /var/lib/pgsql/bin/pstart.sh /usr/local/bin/pstart
