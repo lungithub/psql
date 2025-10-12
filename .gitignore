@@ -1,1 +1,4 @@
 .DS_Store
+psql-scripts/
+sql-scripts/
+*.zip
