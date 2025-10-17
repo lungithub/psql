@@ -31,6 +31,14 @@ set -euo pipefail  # Exit on error, undefined vars, and pipeline errors
 BASEDIR=/hostdata/app/psql/psql-ubuntu2204
 FILES_DIR=${BASEDIR}/files
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+
 # Error trap handler
 trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
 
@@ -42,22 +50,35 @@ error_handler() {
     local last_command=$4
     local func_trace=$5
     
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Script failed at line $line_no with exit code: $exit_code" >&2
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Failed command: $last_command" >&2
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Function call stack: ${func_trace#::}" >&2
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Bash line numbers: $bash_lineno" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Script failed at line $line_no with exit code: $exit_code" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Failed command: $last_command" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Function call stack: ${func_trace#::}" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Bash line numbers: $bash_lineno" >&2
     exit "$exit_code"
 }
 
-# Log messages with timestamp
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+# Logging functions
+log_info() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${BLUE}[INFO]${NC} $1"
 }
+
+log_success() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} $1"
+}
+
 
 # Check if running as root
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        log "Error: This script must be run as root"
+        log_error "This script must be run as root"
         exit 1
     fi
 }
@@ -70,7 +91,7 @@ declare -a config_files=(
 
 # Function to backup and copy configuration files
 copy_config_files() {
-    log "Starting configuration files copy process..."
+    log_info "Starting configuration files copy process..."
     
     for config_entry in "${config_files[@]}"; do
         # Parse the configuration entry: source_file:dest_file:permissions
@@ -80,31 +101,31 @@ copy_config_files() {
         local backup_file="${dest_file}.$$"
         
         if [[ -f "$source_path" ]]; then
-            log "Processing ${source_file} -> ${dest_file}..."
+            log_info "Processing ${source_file} -> ${dest_file}..."
             
             # Create backup of original file
             if [[ -f "$dest_file" ]]; then
-                log "Creating backup: ${dest_file} -> ${backup_file}"
+                log_info "Creating backup: ${dest_file} -> ${backup_file}"
                 cp "$dest_file" "$backup_file"
             fi
             
             # Copy new configuration file
-            log "Copying ${source_path} to ${dest_file}"
+            log_info "Copying ${source_path} to ${dest_file}"
             cp "$source_path" "$dest_file"
             
             # Set proper permissions
-            log "Setting permissions ${permissions} on ${dest_file}"
+            log_info "Setting permissions ${permissions} on ${dest_file}"
             chmod "$permissions" "$dest_file"
             
             # Verify postgres user is in the file
             verify_postgres_config "$dest_file" "$source_file"
             
         else
-            log "Warning: Source file not found: ${source_path}"
+            log_warning "Source file not found: ${source_path}"
         fi
     done
     
-    log "Configuration files copy completed successfully"
+    log_success "Configuration files copy completed successfully"
 }
 
 # Function to verify postgres user configuration
@@ -112,39 +133,39 @@ verify_postgres_config() {
     local config_file="$1"
     local file_type="$2"
     
-    log "Verifying postgres user in ${file_type}..."
+    log_info "Verifying postgres user in ${file_type}..."
     echo
     ls -l "$config_file"
     
     if grep -q postgres "$config_file"; then
-        log "✓ postgres user found in ${config_file}"
+        log_success "postgres user found in ${config_file}"
     else
-        log "⚠ WARNING: postgres user not found in ${config_file}"
+        log_warning "postgres user not found in ${config_file}"
     fi
     echo
 }
 
 # Function to verify postgres user can actually use sudo
 verify_sudo() {
-    log "Testing sudo access for postgres user..."
+    log_info "Testing sudo access for postgres user..."
     
     # Test if postgres user can execute a sudo command
     if sudo -u postgres sudo -n tail -1 /etc/shadow >/dev/null 2>&1; then
-        log "✓ SUCCESS: postgres user can execute sudo commands"
-        log "✓ Sudo configuration is working correctly"
+        log_success "postgres user can execute sudo commands"
+        log_success "Sudo configuration is working correctly"
     else
-        log "⚠ WARNING: postgres user cannot execute sudo commands"
-        log "⚠ This may be due to:"
-        log "   - sudoers file not properly configured"
-        log "   - postgres user not in sudo group"
-        log "   - sudo requiring password (NOPASSWD not set)"
+        log_warning "postgres user cannot execute sudo commands"
+        log_warning "This may be due to:"
+        log_warning "   - sudoers file not properly configured"
+        log_warning "   - postgres user not in sudo group"
+        log_warning "   - sudo requiring password (NOPASSWD not set)"
         
         # Try a more detailed test
-        log "Attempting detailed sudo test..."
+        log_info "Attempting detailed sudo test..."
         if sudo -u postgres sudo -l >/dev/null 2>&1; then
-            log "✓ postgres user has some sudo privileges"
+            log_success "postgres user has some sudo privileges"
         else
-            log "✗ postgres user has no sudo privileges"
+            log_error "postgres user has no sudo privileges"
         fi
     fi
     echo
@@ -152,13 +173,13 @@ verify_sudo() {
 
 # Main function
 main() {
-    log "Starting PostgreSQL sudo configuration setup..."
+    log_info "Starting PostgreSQL sudo configuration setup..."
     
     check_root
     copy_config_files
     verify_sudo
     
-    log "PostgreSQL sudo configuration completed successfully"
+    log_success "PostgreSQL sudo configuration completed successfully"
 }
 
 # Run main function

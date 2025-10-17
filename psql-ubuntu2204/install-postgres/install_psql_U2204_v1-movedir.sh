@@ -26,6 +26,14 @@
 
 set -euo pipefail  # Exit on error, undefined vars, and pipeline errors
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+
 # Error trap handler
 trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
 
@@ -37,10 +45,10 @@ error_handler() {
     local last_command=$4
     local func_trace=$5
     
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Script failed at line $line_no with exit code: $exit_code" >&2
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Failed command: $last_command" >&2
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Function call stack: ${func_trace#::}" >&2
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Bash line numbers: $bash_lineno" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Script failed at line $line_no with exit code: $exit_code" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Failed command: $last_command" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Function call stack: ${func_trace#::}" >&2
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Bash line numbers: $bash_lineno" >&2
     exit "$exit_code"
 }
 
@@ -53,32 +61,54 @@ LOG_DIR="/var/log/postgres"
 LOCK_DIR="/var/run/postgresql"
 PSQL_BASE_DIR="/var/lib/postgresql/${PG_VERSION}"
 
-# Log messages with timestamp
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+# Logging functions
+log_info() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${BLUE}[INFO]${NC} $1"
 }
 
+log_success() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} $1"
+}
 # Check if running as root
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        log "Error: This script must be run as root"
+        log_error "This script must be run as root"
         exit 1
+    fi
+}
+
+check_operating_system() {
+    if [[ "$(lsb_release -is)" != "Ubuntu" ]]; then
+        log_error "This script is designed to run on Ubuntu"
+        exit 1
+    fi
+
+    if [[ "$(lsb_release -rs)" != "22.04" ]]; then
+        log_warning "This script is optimized for Ubuntu 22.04"
     fi
 }
 
 # Add PostgreSQL repository and install packages
 install_postgresql() {
-    log "Adding PostgreSQL repository..."
+    log_info "Adding PostgreSQL repository..."
     
     # More secure key handling using gpg and keyrings
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg
 
     echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
-    log "Updating package lists..."
+    log_info "Updating package lists..."
     DEBIAN_FRONTEND=noninteractive apt-get update
 
-    log "Installing PostgreSQL ${PG_VERSION}..."
+    log_info "Installing PostgreSQL ${PG_VERSION}..."
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         postgresql-${PG_VERSION} \
         postgresql-contrib-${PG_VERSION} \
@@ -87,12 +117,12 @@ install_postgresql() {
 
 # Create and configure data directory
 setup_data_directory() {
-    log "Setting up data directory at ${DATA_DIR}..."
+    log_info "Setting up data directory at ${DATA_DIR}..."
     mkdir -p "${DATA_DIR}"
     chown -R postgres:postgres "${DATA_DIR}"
     chmod 700 "${DATA_DIR}"
 
-    log "Configuring PostgreSQL data directory..."
+    log_info "Configuring PostgreSQL data directory..."
     if [[ -d "${PSQL_BASE_DIR}/data" && ! -L "${PSQL_BASE_DIR}/data" ]]; then
         mv "${PSQL_BASE_DIR}/data" "${PSQL_BASE_DIR}/data_ORIG"
     fi
@@ -102,7 +132,7 @@ setup_data_directory() {
 
 # Setup log directory
 setup_log_directory() {
-    log "Setting up log directory at ${LOG_DIR}..."
+    log_info "Setting up log directory at ${LOG_DIR}..."
     mkdir -p "${LOG_DIR}"
     chown postgres:postgres "${LOG_DIR}"
     chmod 700 "${LOG_DIR}"
@@ -110,7 +140,7 @@ setup_log_directory() {
 
 # Setup lock directory
 setup_lock_directory() {
-    log "Setting up lock directory at ${LOCK_DIR}..."
+    log_info "Setting up lock directory at ${LOCK_DIR}..."
     mkdir -p "${LOCK_DIR}"
     chown postgres:postgres "${LOCK_DIR}"
     chmod 755 "${LOCK_DIR}"
@@ -119,13 +149,13 @@ setup_lock_directory() {
 # Copy management files if they exist
 copy_management_files() {
     if [[ -f "/hostdata/app/psql/install/psql_copy_management_files.sh" ]]; then
-        log "Copying management files..."
+        log_info "Copying management files..."
         /hostdata/app/psql/install/psql_copy_management_files.sh || {
-            log "Warning: Failed to copy management files"
+            log_warning "Failed to copy management files"
             return 1
         }
     else
-        log "Warning: Management files script not found"
+        log_warning "Management files script not found"
         return 1
     fi
 }
@@ -133,65 +163,65 @@ copy_management_files() {
 # Configure postgres environment if script exists
 configure_postgres_environment() {
     if [[ -f "/hostdata/app/psql/install/psql_copy_sudo.sh" ]]; then
-        log "Configuring postgres environment..."
+        log_info "Configuring postgres environment..."
         /hostdata/app/psql/install/psql_copy_sudo.sh || {
-            log "Warning: Failed to configure postgres environment"
+            log_warning "Failed to configure postgres environment"
             return 1
         }
     else
-        log "Warning: Environment configuration script not found"
+        log_warning "Environment configuration script not found"
         return 1
     fi
 }
 
 # Verify installation
 verify_installation() {
-    log "Verifying installation..."
+    log_info "Verifying installation..."
     
     # Check directories and permissions
     local dirs=("${DATA_DIR}" "${LOG_DIR}" "${LOCK_DIR}")
     for dir in "${dirs[@]}"; do
         if [[ ! -d "$dir" ]]; then
-            log "Error: Directory $dir not found"
+            log_error "Directory $dir not found"
             return 1
         fi
         
         if [[ $(stat -c %U:%G "$dir") != "postgres:postgres" ]]; then
-            log "Error: Incorrect ownership on $dir"
+            log_error "Incorrect ownership on $dir"
             return 1
         fi
     done
 
     # Check PostgreSQL binary
     if ! command -v psql &> /dev/null; then
-        log "Error: PostgreSQL binary not found"
+        log_error "PostgreSQL binary not found"
         return 1
     fi
 
     # Check PostgreSQL service
     if ! systemctl is-enabled postgresql &> /dev/null; then
-        log "Enabling PostgreSQL service..."
+        log_info "Enabling PostgreSQL service..."
         systemctl enable postgresql
     fi
 
     if ! systemctl is-active --quiet postgresql; then
-        log "Starting PostgreSQL service..."
+        log_info "Starting PostgreSQL service..."
         systemctl start postgresql
     fi
 
     # Try connecting to PostgreSQL
     if ! sudo -u postgres psql -c "\l" &> /dev/null; then
-        log "Error: Unable to connect to PostgreSQL"
+        log_error "Unable to connect to PostgreSQL"
         return 1
     fi
 
-    log "Installation verification complete"
+    log_success "Installation verification complete"
     return 0
 }
 
 # Main function
 main() {
-    log "Starting PostgreSQL ${PG_VERSION} installation on Ubuntu 22.04..."
+    log_info "Starting PostgreSQL ${PG_VERSION} installation on Ubuntu 22.04..."
     
     check_root
     install_postgresql
@@ -204,14 +234,14 @@ main() {
     configure_postgres_environment || true
     
     if verify_installation; then
-        log "PostgreSQL installation completed successfully"
-        log "To start using PostgreSQL:"
-        log "1. Connect to PostgreSQL: sudo -u postgres psql"
-        log "2. Create a new database: CREATE DATABASE mydb;"
-        log "3. Create a new user: CREATE USER myuser WITH ENCRYPTED PASSWORD 'mypass';"
-        log "4. Grant privileges: GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;"
+        log_success "PostgreSQL installation completed successfully"
+        log_info "To start using PostgreSQL:"
+        log_info "1. Connect to PostgreSQL: sudo -u postgres psql"
+        log_info "2. Create a new database: CREATE DATABASE mydb;"
+        log_info "3. Create a new user: CREATE USER myuser WITH ENCRYPTED PASSWORD 'mypass';"
+        log_info "4. Grant privileges: GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;"
     else
-        log "PostgreSQL installation completed with warnings"
+        log_warning "PostgreSQL installation completed with warnings"
         exit 1
     fi
 }
