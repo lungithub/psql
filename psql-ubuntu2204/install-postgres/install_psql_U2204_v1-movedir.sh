@@ -36,9 +36,11 @@ error_handler() {
     local bash_lineno=$3
     local last_command=$4
     local func_trace=$5
-    log "Error occurred in script at line $line_no, exit code: $exit_code"
-    log "Last command: $last_command"
-    log "Function trace: $func_trace"
+    
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Script failed at line $line_no with exit code: $exit_code" >&2
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Failed command: $last_command" >&2
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Function call stack: ${func_trace#::}" >&2
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: Bash line numbers: $bash_lineno" >&2
     exit "$exit_code"
 }
 
@@ -69,64 +71,49 @@ install_postgresql() {
     log "Adding PostgreSQL repository..."
     
     # More secure key handling using gpg and keyrings
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg || {
-        log "Error: Failed to add PostgreSQL repository key"
-        exit 1
-    }
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg
 
     echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
     log "Updating package lists..."
-    DEBIAN_FRONTEND=noninteractive apt-get update || { 
-        log "Error: Failed to update package lists"
-        exit 1
-    }
+    DEBIAN_FRONTEND=noninteractive apt-get update
 
     log "Installing PostgreSQL ${PG_VERSION}..."
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         postgresql-${PG_VERSION} \
         postgresql-contrib-${PG_VERSION} \
-        python3-psycopg2 || {
-        log "Error: Failed to install PostgreSQL packages"
-        exit 1
-    }
+        python3-psycopg2
 }
 
 # Create and configure data directory
 setup_data_directory() {
     log "Setting up data directory at ${DATA_DIR}..."
-    mkdir -p "${DATA_DIR}" || { log "Error: Failed to create data directory"; exit 1; }
-    chown -R postgres:postgres "${DATA_DIR}" || { log "Error: Failed to set ownership of data directory"; exit 1; }
-    chmod 700 "${DATA_DIR}" || { log "Error: Failed to set permissions on data directory"; exit 1; }
+    mkdir -p "${DATA_DIR}"
+    chown -R postgres:postgres "${DATA_DIR}"
+    chmod 700 "${DATA_DIR}"
 
     log "Configuring PostgreSQL data directory..."
     if [[ -d "${PSQL_BASE_DIR}/data" && ! -L "${PSQL_BASE_DIR}/data" ]]; then
-        mv "${PSQL_BASE_DIR}/data" "${PSQL_BASE_DIR}/data_ORIG" || {
-            log "Error: Failed to backup original data directory"
-            exit 1
-        }
+        mv "${PSQL_BASE_DIR}/data" "${PSQL_BASE_DIR}/data_ORIG"
     fi
     
-    ln -sf "${DATA_DIR}" "${PSQL_BASE_DIR}/data" || {
-        log "Error: Failed to create symlink to data directory"
-        exit 1
-    }
+    ln -sf "${DATA_DIR}" "${PSQL_BASE_DIR}/data"
 }
 
 # Setup log directory
 setup_log_directory() {
     log "Setting up log directory at ${LOG_DIR}..."
-    mkdir -p "${LOG_DIR}" || { log "Error: Failed to create log directory"; exit 1; }
-    chown postgres:postgres "${LOG_DIR}" || { log "Error: Failed to set ownership of log directory"; exit 1; }
-    chmod 700 "${LOG_DIR}" || { log "Error: Failed to set permissions on log directory"; exit 1; }
+    mkdir -p "${LOG_DIR}"
+    chown postgres:postgres "${LOG_DIR}"
+    chmod 700 "${LOG_DIR}"
 }
 
 # Setup lock directory
 setup_lock_directory() {
     log "Setting up lock directory at ${LOCK_DIR}..."
-    mkdir -p "${LOCK_DIR}" || { log "Error: Failed to create lock directory"; exit 1; }
-    chown postgres:postgres "${LOCK_DIR}" || { log "Error: Failed to set ownership of lock directory"; exit 1; }
-    chmod 755 "${LOCK_DIR}" || { log "Error: Failed to set permissions on lock directory"; exit 1; }
+    mkdir -p "${LOCK_DIR}"
+    chown postgres:postgres "${LOCK_DIR}"
+    chmod 755 "${LOCK_DIR}"
 }
 
 # Copy management files if they exist
@@ -189,10 +176,7 @@ verify_installation() {
 
     if ! systemctl is-active --quiet postgresql; then
         log "Starting PostgreSQL service..."
-        systemctl start postgresql || {
-            log "Error: Failed to start PostgreSQL service"
-            return 1
-        }
+        systemctl start postgresql
     fi
 
     # Try connecting to PostgreSQL
