@@ -1,6 +1,6 @@
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 Subject ...: Bash Trap Error Handling - Understanding "Where is the trap used?"
-Author ....: GitHub Copilot
+Author ....: deveplab
 
 [-] DESCRIPTION
 
@@ -28,7 +28,7 @@ This article explains how Bash trap mechanisms work in shell scripts, specifical
 [-] Revision History
 
 Date: Thu 2025Oct17
-Author: GitHub Copilot
+Author: deveplab
 Reason for change: Initial knowledge base article on Bash trap usage
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

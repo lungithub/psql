@@ -43,11 +43,7 @@ setup_log_directory() {
 main() {
     log "Starting PostgreSQL ${PG_VERSION} installation on Ubuntu 22.04..."
     
-    check_root
-    install_postgresql
-    setup_data_directory
     setup_log_directory
-    setup_lock_directory
     
     # Optional steps - don't fail if they don't succeed
     copy_management_files || true

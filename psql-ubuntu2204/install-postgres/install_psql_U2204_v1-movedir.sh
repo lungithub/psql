@@ -194,6 +194,8 @@ main() {
     log "Starting PostgreSQL ${PG_VERSION} installation on Ubuntu 22.04..."
     
     check_root
+    log "DEBUG: After check_root, about to exit"
+    log "Script completed - no installation performed"
     install_postgresql
     setup_data_directory
     setup_log_directory
