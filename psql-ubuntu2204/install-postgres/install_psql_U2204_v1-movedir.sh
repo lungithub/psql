@@ -314,10 +314,29 @@ verify_installation() {
     return 0
 }
 
+# Function to check existing settings
+# Check how much time passed between start and end
+calculate_time_difference() {
+    log_info "Calculating installation time difference..."
+    local start_time=$1
+    local end_time=$2
+
+    start_seconds=$(date -d "$start_time" +%s)
+    end_seconds=$(date -d "$end_time  " +%s)
+    diff_seconds=$((end_seconds - start_seconds))
+    
+    readable_time_human=$(date -u -d @"$diff_seconds" +"%H:%M:%S")
+    log_info "Total installation time: $readable_time_human (HH:MM:SS)"
+    echo
+    echo "Start time: $start_time"
+    echo "End time:   $end_time"
+    echo "Total duration: $diff_seconds seconds"
+}
+
 # Main function
 main() {
-    local start_time=$(date +%s)
-    local end_time=$((start_time + 3600))  # 1 hour timeout
+    local start_time=$(date +"%Y-%m-%d %H:%M:%S")
+
     echo
     echo "----------------------------------------"
     echo " PostgreSQL Installation Script "
@@ -353,10 +372,12 @@ main() {
         exit 1
     fi
 
-    echo "Startup Time: $(date -d @"$start_time" +'%Y-%m-%d %H:%M:%S')"
-    echo "End Time: $(date -d @"$end_time" +'%Y-%m-%d %H:%M:%S')"
-    echo "Total Duration: $((end_time - start_time)) seconds"
-    echo ""
+    sleep 5
+
+    local end_time=$(date +"%Y-%m-%d %H:%M:%S")
+
+    calculate_time_difference "$start_time" "$end_time"
+
 }
 
 # Run main function
