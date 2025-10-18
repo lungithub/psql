@@ -8,6 +8,7 @@ set -euo pipefail  # Exit on error, undefined vars, and pipeline errors
 BIN_DIR=/var/lib/pgsql/bin
 BASEDIR=/hostdata/app/psql/psql-ubuntu2204
 FILES=${BASEDIR}/postgres-config-files
+ETC_POSTGRESQL_DIR=/etc/postgresql/13/main/
 
 # Error trap handler
 trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
@@ -40,6 +41,22 @@ check_root() {
     fi
 }
 
+function copy_config_files() {
+    echo
+    echo "----------------------------------------"
+    echo " Copy PostgreSQL Configuration Files "
+    echo "----------------------------------------"
+    echo
+    log "Starting copy of PostgreSQL configuration files..."
+    cp -r "${FILES}/primary_postgresql.conf" "${ETC_POSTGRESQL_DIR}/postgresql.conf"
+    cp -r "${FILES}/pg_hba.conf" "${ETC_POSTGRESQL_DIR}/pg_hba.conf"
+    chown postgres:postgres "${ETC_POSTGRESQL_DIR}/postgresql.conf"
+    chown postgres:postgres "${ETC_POSTGRESQL_DIR}/pg_hba.conf"
+    chmod 640 "${ETC_POSTGRESQL_DIR}/postgresql.conf"
+    chmod 640 "${ETC_POSTGRESQL_DIR}/pg_hba.conf"
+    log "PostgreSQL configuration files copied successfully"
+}
+
 function create-bin-dir() {
     log "Creating bin directory at ${BIN_DIR}..."
     # Create directory if it doesn't exist
@@ -51,6 +68,12 @@ function create-bin-dir() {
 declare -a files=(pstart.sh pstop.sh pstatus.sh psreload.sh)
 
 function copy-management-files() {
+    echo
+    echo "----------------------------------------"
+    echo " Copy PostgreSQL Management Files "
+    echo "----------------------------------------"
+    echo
+
     log "Starting copy of PostgreSQL management files..."
     
     # Loop through each file in the array
@@ -89,6 +112,7 @@ main() {
     log "Starting PostgreSQL management files copy script..."
     
     check_root
+    copy_config_files
     create-bin-dir
     copy-management-files
     
