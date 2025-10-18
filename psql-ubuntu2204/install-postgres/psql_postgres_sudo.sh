@@ -2,34 +2,10 @@
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 # PURPOSE: Configure sudo access for postgres user
 #
-# I have a preconfigured GROUPS and SUDOERS file with the postgres
-# user. I just copy those files to the container to enable sudo 
-# for postgres.
-#
-# Perms for reference:
-# /etc/group: -rw-r--r-- 1 root root 373 Jan  9 01:53 /etc/group
-# /etc/sudoers: -r--r----- 1 root root 440 /etc/sudoers
-#
-# CONFIGURATION ARRAY FORMAT:
-# The config_files array contains colon-separated entries in the format:
-#   "source_file:destination_file:permissions"
-# 
-# Example: "etc_sudoers:/etc/sudoers:440"
-#   - source_file = "etc_sudoers" (file in ${FILES_DIR}/)
-#   - destination_file = "/etc/sudoers" (target system file)
-#   - permissions = "440" (octal permissions to set)
-#
-# The script uses IFS=':' read to parse each entry and extract these three
-# variables for processing in the copy_config_files() function.
-#
 # The script uses a function to test sudo access for the postgres user.
 #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 set -euo pipefail  # Exit on error, undefined vars, and pipeline errors
-
-# Configuration
-BASEDIR=/hostdata/app/psql/psql-ubuntu2204
-FILES_DIR=${BASEDIR}/files
 
 # Colors for output
 RED='\033[0;31m'
@@ -83,66 +59,25 @@ check_root() {
     fi
 }
 
-# Array of configuration files to process
-declare -a config_files=(
-    "etc_sudoers:/etc/sudoers:440"
-    "etc_group:/etc/group:644"
-)
-
-# Function to backup and copy configuration files
-copy_config_files() {
-    log_info "Starting configuration files copy process..."
-    
-    for config_entry in "${config_files[@]}"; do
-        # Parse the configuration entry: source_file:dest_file:permissions
-        IFS=':' read -r source_file dest_file permissions <<< "$config_entry"
-        
-        local source_path="${FILES_DIR}/${source_file}"
-        local backup_file="${dest_file}.$$"
-        
-        if [[ -f "$source_path" ]]; then
-            log_info "Processing ${source_file} -> ${dest_file}..."
-            
-            # Create backup of original file
-            if [[ -f "$dest_file" ]]; then
-                log_info "Creating backup: ${dest_file} -> ${backup_file}"
-                cp "$dest_file" "$backup_file"
-            fi
-            
-            # Copy new configuration file
-            log_info "Copying ${source_path} to ${dest_file}"
-            cp "$source_path" "$dest_file"
-            
-            # Set proper permissions
-            log_info "Setting permissions ${permissions} on ${dest_file}"
-            chmod "$permissions" "$dest_file"
-            
-            # Verify postgres user is in the file
-            verify_postgres_config "$dest_file" "$source_file"
-            
-        else
-            log_warning "Source file not found: ${source_path}"
-        fi
-    done
-    
-    log_success "Configuration files copy completed successfully"
-}
 
 # Function to verify postgres user configuration
-verify_postgres_config() {
-    local config_file="$1"
-    local file_type="$2"
-    
-    log_info "Verifying postgres user in ${file_type}..."
-    echo
-    ls -l "$config_file"
-    
-    if grep -q postgres "$config_file"; then
-        log_success "postgres user found in ${config_file}"
+setup_postgres_sudo_config() {
+    # Add postgres to admin group (sudo or wheel)
+    if getent group sudo > /dev/null; then
+        log_info "Adding postgres to sudo group"
+        usermod -aG sudo postgres
+    elif getent group wheel > /dev/null; then
+        log_info "Adding postgres to wheel group"
+        usermod -aG wheel postgres
     else
-        log_warning "postgres user not found in ${config_file}"
+        log_warning "No sudo or wheel group found; skipping group addition"
     fi
-    echo
+
+    # Set up passwordless sudo for postgres
+    SUDOERS_FILE="/etc/sudoers.d/postgres"
+    echo "postgres ALL=(ALL) NOPASSWD:ALL" > "$SUDOERS_FILE"
+    chmod 440 "$SUDOERS_FILE"
+    log_success "Passwordless sudo configured for postgres in $SUDOERS_FILE"
 }
 
 # Function to verify postgres user can actually use sudo
@@ -176,11 +111,11 @@ main() {
     log_info "Starting PostgreSQL sudo configuration setup..."
     
     check_root
-    copy_config_files
+    setup_postgres_sudo_config
     verify_sudo
     
     log_success "PostgreSQL sudo configuration completed successfully"
 }
 
 # Run main function
-main "$@"  
+main "$@"

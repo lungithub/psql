@@ -1,5 +1,5 @@
 #!/bin/bash
-#=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+#
 # PostgreSQL Installation Script for Ubuntu 22.04
 # This script installs and configures PostgreSQL with proper directory structure
 # and permissions.
@@ -22,14 +22,7 @@
 # Example: ./install_psql_U2204_improved.sh 13
 #
 # Date: Mon 2025Jun16 
-# Date Modified: Sat 2025Oct18 14:19:03 PDT -- complete rewrite with movedir functionality
-# - add logging functions
-# - add error handling with trap
-# - add OS check
-# - improve PostgreSQL repository key handling
 #
-# Author: devesplabs
-#=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 set -euo pipefail  # Exit on error, undefined vars, and pipeline errors
 
@@ -39,6 +32,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
 
 # Error trap handler
 trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
@@ -84,6 +78,8 @@ log_error() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} $1"
 }
 
+log_info "About to run check_root"
+
 # Check if running as root
 check_root() {
     if [[ $EUID -ne 0 ]]; then
@@ -112,6 +108,7 @@ check_operating_system() {
 
 # Add PostgreSQL repository and install packages
 install_postgresql() {
+
     log_info "Proceeding with PostgreSQL installation..."
     echo
     echo "----------------------------------------"
@@ -140,8 +137,8 @@ install_postgresql() {
 }
 
 # Create and configure custom data directory
-# The reason for moving the data directory is often to place it on a different disk or partition  
-# that may have better performance, more space, or specific backup strategies.   
+# The reason for moving the data directory is often to place it on a different disk or partition that 
+# may have better performance, more space, or specific backup strategies.   
 setup_data_directory() {
     echo
     echo "----------------------------------------"
@@ -316,8 +313,6 @@ verify_installation() {
 
 # Main function
 main() {
-    local start_time=$(date +%s)
-    local end_time=$((start_time + 3600))  # 1 hour timeout
     echo
     echo "----------------------------------------"
     echo " PostgreSQL Installation Script "
@@ -352,11 +347,6 @@ main() {
         log_warning "PostgreSQL installation completed with warnings"
         exit 1
     fi
-
-    echo "Startup Time: $(date -d @"$start_time" +'%Y-%m-%d %H:%M:%S')"
-    echo "End Time: $(date -d @"$end_time" +'%Y-%m-%d %H:%M:%S')"
-    echo "Total Duration: $((end_time - start_time)) seconds"
-    echo ""
 }
 
 # Run main function
