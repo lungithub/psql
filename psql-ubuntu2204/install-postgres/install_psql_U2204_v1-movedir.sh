@@ -51,7 +51,7 @@ error_handler() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Bash line numbers: $bash_lineno" >&2
     exit "$exit_code"
 }
-
+#
 # Default PostgreSQL version
 PG_VERSION="${1:-13}"
 
@@ -60,6 +60,7 @@ DATA_DIR="/db/pg${PG_VERSION}"
 LOG_DIR="/var/log/postgres"
 LOCK_DIR="/var/run/postgresql"
 PSQL_BASE_DIR="/var/lib/postgresql/${PG_VERSION}"
+PSQL_DEFAULT_DATA_DIR="/var/lib/postgresql/${PG_VERSION}/main"
 
 # Logging functions
 log_info() {
@@ -123,11 +124,11 @@ setup_data_directory() {
     chmod 700 "${DATA_DIR}"
 
     log_info "Configuring PostgreSQL data directory..."
-    if [[ -d "${PSQL_BASE_DIR}/data" && ! -L "${PSQL_BASE_DIR}/data" ]]; then
-        mv "${PSQL_BASE_DIR}/data" "${PSQL_BASE_DIR}/data_ORIG"
+    if [[ -d "${PSQL_DEFAULT_DATA_DIR}" && ! -L "${PSQL_DEFAULT_DATA_DIR}" ]]; then
+        mv "${PSQL_DEFAULT_DATA_DIR}" "${PSQL_DEFAULT_DATA_DIR}_ORIG"
     fi
-    
-    ln -sf "${DATA_DIR}" "${PSQL_BASE_DIR}/data"
+
+    ln -sf "${DATA_DIR}" "${PSQL_DEFAULT_DATA_DIR}"
 }
 
 # Setup log directory
@@ -148,9 +149,9 @@ setup_lock_directory() {
 
 # Copy management files if they exist
 copy_management_files() {
-    if [[ -f "/hostdata/app/psql/install/psql_copy_management_files.sh" ]]; then
+    if [[ -f "/hostdata/app/psql/psql-ubuntu2204/install-postgres/copy_psql_management_files.sh" ]]; then
         log_info "Copying management files..."
-        /hostdata/app/psql/install/psql_copy_management_files.sh || {
+        /hostdata/app/psql/psql-ubuntu2204/install-postgres/copy_psql_management_files.sh || {
             log_warning "Failed to copy management files"
             return 1
         }
@@ -162,9 +163,9 @@ copy_management_files() {
 
 # Configure postgres environment if script exists
 configure_postgres_environment() {
-    if [[ -f "/hostdata/app/psql/install/psql_copy_sudo.sh" ]]; then
+    if [[ -f "/hostdata/app/psql/psql-ubuntu2204/install-postgres/copy_psql_sudo.sh" ]]; then
         log_info "Configuring postgres environment..."
-        /hostdata/app/psql/install/psql_copy_sudo.sh || {
+        /hostdata/app/psql/psql-ubuntu2204/install-postgres/copy_psql_sudo.sh || {
             log_warning "Failed to configure postgres environment"
             return 1
         }
