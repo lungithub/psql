@@ -344,12 +344,14 @@ main() {
     echo
     log_info "Starting PostgreSQL ${PG_VERSION} installation on Ubuntu 22.04..."
     
+    check_root
+    check_operating_system
+
     if which psql > /dev/null; then
         log_info "psql is already installed. Skipping installation."
         exit 0
     fi
 
-    check_root
     install_postgresql
     setup_data_directory
     setup_log_directory
@@ -371,8 +373,6 @@ main() {
         log_warning "PostgreSQL installation completed with warnings"
         exit 1
     fi
-
-    sleep 5
 
     local end_time=$(date +"%Y-%m-%d %H:%M:%S")
 
