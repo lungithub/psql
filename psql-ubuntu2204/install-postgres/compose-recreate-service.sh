@@ -9,7 +9,17 @@
 # Example:  
 #   ./compose-recreate-service.sh pgnode1
 # Where pgnode1 is the name of the service defined in docker-compose.yml
+#
+# Caveats:
+# You get "$1: unbound variable" error because we are using set -u (treat unset 
+# variables as an error), and your script's main() function expects a positional 
+# argument ($1). This error would occure when not passing any arguments when 
+# running the script without checking for the number of arguments.
+#
 # ------------------------------------------------------------------
+# 
+# Reference:
+# https://unix.stackexchange.com/questions/463034/bash-throws-error-line-8-1-unbound-variable
 #
 # Date: Sat 2025Oct25 10:42:22 PDT
 #
@@ -42,15 +52,6 @@ error_handler() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} Bash line numbers: $bash_lineno" >&2
     exit "$exit_code"
 }
-#
-# Default PostgreSQL version
-PG_VERSION="${1:-13}"
-
-# Directories
-PSQL_DEFAULT_DATA_DIR="/var/lib/postgresql/${PG_VERSION}/main"
-NEW_DATA_DIR="/db/mypg${PG_VERSION}"
-LOG_DIR="/var/log/postgres"
-LOCK_DIR="/var/run/postgresql"
 
 # Logging functions
 log_info() {
@@ -67,6 +68,15 @@ log_warning() {
 
 log_error() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] ${RED}[ERROR]${NC} $1"
+}
+
+# display help
+usage() {
+    echo 
+    echo "Usage: $0 <service_name>"
+    echo "Example: $0 pgnode1"
+    echo
+    exit 1
 }
 
 compose_recreate_service() {
@@ -117,9 +127,21 @@ calculate_time_difference() {
 }
 
 # Main function
+# Checks for a required service name argument at the start of main(). 
+# If no argument is provided, it prints a usage message and exits, preventing the "unbound variable" error.
 main() {
+    if [[ $# -lt 1 ]]; then
+        echo
+        log_error "No service name provided."
+        usage
+        exit 1
+    fi
+
+    local container_name=$1
     local start_time=$(date +"%Y-%m-%d %H:%M:%S")
-    compose_recreate_service "$1"
+
+    compose_recreate_service "$container_name"
+
     local end_time=$(date +"%Y-%m-%d %H:%M:%S")
     calculate_time_difference "$start_time" "$end_time"
 }
