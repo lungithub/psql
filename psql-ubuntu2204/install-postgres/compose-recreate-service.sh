@@ -108,17 +108,26 @@ compose_recreate_service() {
 }
 
 # Function to check existing settings
-# Check how much time passed between start and end
+# This function calculates the time difference between two timestamps.
+# The calulation accounts for differences in date command syntax between Linux and macOS.
 calculate_time_difference() {
     log_info "Calculating installation time difference..."
-    local start_time=$1
-    local end_time=$2
+    local start_time="$1"
+    local end_time="$2"
 
-    start_seconds=$(date -d "$start_time" +%s)
-    end_seconds=$(date -d "$end_time  " +%s)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        # macOS/BSD date
+        start_seconds=$(date -j -f "%Y-%m-%d %H:%M:%S" "$start_time" "+%s")
+        end_seconds=$(date -j -f "%Y-%m-%d %H:%M:%S" "$end_time" "+%s")
+    else
+        # Linux/GNU date
+        start_seconds=$(date -d "$start_time" "+%s")
+        end_seconds=$(date -d "$end_time" "+%s")
+    fi
+
     diff_seconds=$((end_seconds - start_seconds))
-    
-    readable_time_human=$(date -u -d @"$diff_seconds" +"%H:%M:%S")
+    readable_time_human=$(printf '%02d:%02d:%02d' $((diff_seconds/3600)) $(((diff_seconds%3600)/60)) $((diff_seconds%60)) )
+
     log_info "Total installation time: $readable_time_human (HH:MM:SS)"
     echo
     echo "Start time: $start_time"
@@ -140,7 +149,9 @@ main() {
     local container_name=$1
     local start_time=$(date +"%Y-%m-%d %H:%M:%S")
 
+    log_info "Starting recreation of Docker Compose service: $container_name"
     compose_recreate_service "$container_name"
+    sleep 5
 
     local end_time=$(date +"%Y-%m-%d %H:%M:%S")
     calculate_time_difference "$start_time" "$end_time"
