@@ -1,0 +1,328 @@
+#
+# In this config all containers can talk to each other on the given networks.
+# But the ip address given in one network can be on the same range as the one
+# given on another netwrok. I want all to be different VLANS.
+#
+# https://stackoverflow.com/questions/72216583/docker-compose-networking-priority-property-ignored
+#
+# Thu 2023Nov02 07:55:38 PDT -- using AARCH64 docker image for MacOS M1/M2
+#
+# version: "2.13.0"
+
+services:
+
+###########################################################
+#########       INFRASTRUCTURE
+###########################################################
+#
+# NETUTILS
+#  
+  netutils:
+    image: nicolaka/netshoot
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.13"
+      net2:
+        priority: 0
+      net3:
+        priority: 0
+    hostname: netutils
+    container_name: netutils2
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"         
+    command: ["sleep", "infinity"]
+
+#
+# PGADMIN
+# Mon 2023Jan16 17:18:03 PST
+#
+  pgadmin-2:
+    container_name: pgadmin-2
+    image: dpage/pgadmin4:latest
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.14"
+      net2:
+        priority: 0
+      net3:
+        priority: 0       
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=devuser@localnet.net
+      - PGADMIN_DEFAULT_PASSWORD=abc12345
+    ports:
+      - "5050:80"
+    restart: always
+
+#
+# PROMETHEUS
+# Sun 2022Dec04 18:35:39 PST
+#   
+  prometheus-2:
+    image: prom/prometheus    
+    hostname: prometheus-2
+    container_name: prometheus-2
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.15"
+      net2:
+        priority: 0
+      net3:
+        priority: 0     
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+    volumes:
+      - "./:/hostdata"  
+      - ./prometheus:/etc/prometheus
+      - prom_data:/prometheus
+
+#
+# GRAFANA
+# Sun 2022Dec04 18:35:39 PST
+#     
+  grafana-2:
+    image: grafana/grafana
+    hostname: grafana-2
+    container_name: grafana-2
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.16"
+      net2:
+        priority: 0
+      net3:
+        priority: 0     
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana
+    volumes:
+      - "./:/hostdata"      
+      - ./grafana:/etc/grafana/provisioning/datasources
+
+#
+# PORTAINER
+# Sun 2022Dec04 18:35:39 PST
+#
+  portainer-2:
+    image: portainer/portainer-ce:alpine
+    hostname: portainer-2
+    container_name: portainer-2
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.17"
+      net2:
+        priority: 0
+      net3:
+        priority: 0     
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9000:9000"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "portainer_data:/app"
+    restart: always
+
+###########################################################
+#########       ANSIBLE
+###########################################################
+#
+# Ansible - Control
+#  
+  ansiblecontrol:
+    # image: arm64v8/ubuntu:22.04
+    image: dockio/u2204-arm64v8:1.0
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.18"
+      net2:
+        priority: 0
+      net3:
+        priority: 0
+    hostname: ansiblecontrol
+    entrypoint: ["/usr/sbin/init"]
+    container_name: ansiblecontrol
+    privileged: true 
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"      
+    command: ["sleep", "infinity"]    
+
+#
+# Ansible - Agent1
+#  
+  ansibleagent1:
+    image: dockio/u2204-arm64v8:1.0
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.19"
+      net2:
+        priority: 0
+      net3:
+        priority: 0
+    hostname: ansibleagent1
+    entrypoint: ["/usr/sbin/init"]
+    container_name: ansibleagent1
+    privileged: true    
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"      
+    command: ["sleep", "infinity"]  
+
+#
+# Ansible - Agent2
+#  
+  ansibleagent2:
+    image: dockio/u2204-arm64v8:1.0
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.20"
+      net2:
+        priority: 0
+      net3:
+        priority: 0
+    hostname: ansibleagent2
+    entrypoint: ["/usr/sbin/init"]
+    container_name: ansibleagent2
+    privileged: true    
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"      
+    command: ["sleep", "infinity"]  
+    
+###########################################################
+#########       POSTGRESQL
+###########################################################
+#
+# WITNESS - Ubuntu
+#  
+  witness:
+    # image: ubuntu:22.04
+    image: dockio/u2204-arm64v8:1.0
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.12"
+      net2:
+        priority: 0
+      net3:
+        priority: 0
+    hostname: witness
+    entrypoint: ["/usr/sbin/init"]    
+    container_name: witness
+    privileged: true
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"      
+    command: ["sleep", "infinity"]  
+
+#
+# FIRST - Ubuntu
+#  
+  pgnode1:
+    # image: ubuntu:22.04
+    image: dockio/u2204-arm64v8:1.0
+    networks:
+      net1:
+        priority: 10
+        ipv4_address: "172.24.1.11"
+      net2:
+        priority: 0
+      net3:
+        priority: 0
+    hostname: pgnode1
+    entrypoint: ["/usr/sbin/init"]
+    container_name: pgnode1
+    privileged: true
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"      
+    command: ["sleep", "infinity"]      
+#
+# SECOND - Ubuntu
+#  
+  pgnode2:
+    # image: ubuntu:22.04
+    image: dockio/u2204-arm64v8:1.0
+    networks:
+      net1:
+        priority: 0
+      net2:
+        priority: 20
+        ipv4_address: "172.25.1.22"            
+      net3:
+        priority: 0
+    hostname: pgnode2
+    entrypoint: ["/usr/sbin/init"]
+    container_name: pgnode2
+    privileged: true  
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"    
+    command: ["sleep", "infinity"] 
+
+#
+# THIRD - Ubuntu
+#  
+  pgnode3:
+    # image: ubuntu:22.04
+    image: dockio/u2204-arm64v8:1.0
+    networks:   
+      net1:
+        priority: 0
+      net2:
+        priority: 0        
+      net3:
+        priority: 30
+        ipv4_address: "172.26.1.23"           
+    hostname: pgnode3
+    entrypoint: ["/usr/sbin/init"]
+    container_name: pgnode3
+    privileged: true  
+    restart: on-failure
+    volumes:
+      - "./:/hostdata"    
+    command: ["sleep", "infinity"] 
+
+###########################################################
+#########       NETWORK
+###########################################################
+networks:
+  net1:
+    ipam: 
+      driver: default
+      config:
+        - subnet: "172.24.0.0/16"
+          ip_range: "172.24.1.0/24"
+  net2:
+    ipam: 
+      driver: default
+      config:
+        - subnet: "172.25.0.0/16"
+          ip_range: "172.25.1.0/24"
+  net3:
+    ipam: 
+      driver: default
+      config:
+        - subnet: "172.26.0.0/16" 
+          ip_range: "172.26.1.0/24"
+
+volumes:
+  # portainer
+  portainer_data:    
+  # p8s
+  prom_data:
+  # postgres
+  postgres_data:
