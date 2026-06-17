@@ -51,7 +51,7 @@ PG_USER="${PG_USER:-postgres}"
 
 # Paths derived from resolved variables — no hardcoding
 BIN_DIR="/var/lib/postgresql/bin"
-FILES="${SCRIPT_DIR}/../postgres-config-files"
+FILES="../postgres-config-files"
 ETC_POSTGRESQL_DIR="/etc/postgresql/${PG_VERSION}/main"
 
 # Colors for output
@@ -113,8 +113,8 @@ copy_config_files() {
     log_info "Source : ${FILES}"
     log_info "Target : ${ETC_POSTGRESQL_DIR}"
     log_info "Starting copy of PostgreSQL configuration files..."
-    cp "${FILES}/primary_postgresql.conf" "${ETC_POSTGRESQL_DIR}/postgresql.conf"
-    cp "${FILES}/pg_hba.conf"             "${ETC_POSTGRESQL_DIR}/pg_hba.conf"
+    cp "${FILES}/config_primary_postgresql.conf" "${ETC_POSTGRESQL_DIR}/postgresql.conf"
+    cp "${FILES}/config_pg_hba.conf"             "${ETC_POSTGRESQL_DIR}/pg_hba.conf"
     chown "${PG_USER}:${PG_USER}" "${ETC_POSTGRESQL_DIR}/postgresql.conf"
     chown "${PG_USER}:${PG_USER}" "${ETC_POSTGRESQL_DIR}/pg_hba.conf"
     chmod 640 "${ETC_POSTGRESQL_DIR}/postgresql.conf"
